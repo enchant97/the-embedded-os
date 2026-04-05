@@ -2,6 +2,7 @@
 
 pub mod alloc;
 pub mod core;
+pub mod display;
 pub mod process;
 
 pub use process::ExitCode;
