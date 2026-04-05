@@ -1,20 +1,20 @@
 #![no_std]
-use kernel_abi::KernelAbi;
 
-static mut ABI_PTR: *const KernelAbi = core::ptr::null();
+pub mod core;
+pub mod process;
 
-/// Init the kernel abi, so libsys knows where to look.
-///
-/// Must be called once on program start.
-#[unsafe(no_mangle)]
-pub extern "C" fn init_abi(abi_ptr: &'static KernelAbi) {
-    unsafe {
-        ABI_PTR = abi_ptr;
-    }
-}
+pub use process::ExitCode;
 
-/// Get the current version of the kernel abi.
-#[unsafe(no_mangle)]
-pub extern "C" fn get_abi_version() -> u32 {
-    unsafe { ((*ABI_PTR).get_version)() }
+#[macro_export]
+macro_rules! main_entrypoint {
+    ($main:path) => {
+        const _: fn() -> $crate::process::ExitCode = $main;
+
+        #[unsafe(no_mangle)]
+        #[unsafe(link_section = ".text._start")]
+        pub extern "C" fn _start(abi: *const ::kernel_abi::KernelAbi) -> ! {
+            $crate::core::sys_init(abi);
+            $crate::process::exit($main())
+        }
+    };
 }

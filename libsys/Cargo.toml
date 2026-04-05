@@ -5,6 +5,3 @@ edition = "2024"
 
 [dependencies]
 kernel_abi = { path = "../kernel_abi" }
-
-[build-dependencies]
-cbindgen = "0.29"

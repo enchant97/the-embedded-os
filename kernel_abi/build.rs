@@ -13,6 +13,7 @@ fn main() {
             "/* Generated File — DO NOT EDIT, This file was generated using cbindgen.*/",
         )
         .include_item("KernelAbi")
+        .include_item("ExitCode")
         .generate()
         .expect("Unable to generate C bindings")
         .write_to_file("../target/include/abi_bindings.h");
