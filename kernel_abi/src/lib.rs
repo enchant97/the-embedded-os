@@ -13,4 +13,8 @@ pub enum ExitCode {
 pub struct KernelAbi {
     pub get_version: extern "C" fn() -> u32,
     pub exit: extern "C" fn(ExitCode) -> !,
+    /// Memory allocation request
+    pub malloc: extern "C" fn(size: usize) -> *mut u8,
+    /// Memory removal request
+    pub free: extern "C" fn(ptr: *mut u8),
 }
