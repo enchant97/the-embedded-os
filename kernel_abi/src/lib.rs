@@ -2,6 +2,8 @@
 
 use core::ffi::c_void;
 
+pub mod display;
+
 /// Used to report the exit code of the program.
 #[repr(C)]
 #[derive(PartialEq, Clone, Copy, Debug)]
