@@ -13,6 +13,6 @@ unsafe impl GlobalAlloc for System {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        (abi().free)(ptr)
+        (abi().free)(ptr);
     }
 }

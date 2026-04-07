@@ -9,12 +9,13 @@ pub struct FileDesc {
 }
 
 impl FileDesc {
+    #[must_use]
     pub fn from_fd(fd: FileDescriptor) -> Self {
         Self { descriptor: fd }
     }
 
     pub fn write(&self, buf: &[u8]) {
-        (abi().write)(self.descriptor, buf.as_ptr() as *const u8, buf.len());
+        (abi().write)(self.descriptor, buf.as_ptr(), buf.len());
     }
 
     pub fn flush(&self) {

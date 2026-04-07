@@ -32,15 +32,15 @@ impl DisplayRaw {
             .ioctl(
                 DisplayOperation::GetMode as usize,
                 null(),
-                &mut display_mode as *mut _ as *mut c_void,
+                &raw mut display_mode as *mut c_void,
             )
-            .map(|_| display_mode)
+            .map(|()| display_mode)
     }
 
     pub fn set_display_mode(&mut self, display_mode: DisplayMode) -> Result<(), ExitCode> {
         FileDesc::from_fd(FileDescriptor::Display).ioctl(
             DisplayOperation::SetMode as usize,
-            &display_mode as *const _ as *mut c_void,
+            &raw const display_mode as *mut c_void,
             null_mut(),
         )
     }
@@ -54,9 +54,9 @@ impl DisplayRaw {
             .ioctl(
                 DisplayOperation::GetStat as usize,
                 null(),
-                &mut display_stat as *mut _ as *mut c_void,
+                &raw mut display_stat as *mut c_void,
             )
-            .map(|_| display_stat)
+            .map(|()| display_stat)
     }
 }
 
