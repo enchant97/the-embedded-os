@@ -1,6 +1,6 @@
 use crate::fd::FileDesc;
 use core::{
-    cell::RefCell,
+    cell::{RefCell, RefMut},
     ffi::c_void,
     ptr::{null, null_mut},
 };
@@ -11,11 +11,21 @@ use nostd::io::Write;
 
 pub use kernel_abi::display::{DisplayMode, DisplayStat};
 
-pub struct Display {
+pub struct DisplayRaw {
     _private: (),
 }
 
+pub struct Display {
+    inner: Mutex<ThreadModeRawMutex, RefCell<DisplayRaw>>,
+}
+
 impl Display {
+    pub fn lock<U>(&self, f: impl FnOnce(&mut RefMut<'_, DisplayRaw>) -> U) -> U {
+        unsafe { self.inner.lock_mut(|v| f(&mut v.borrow_mut())) }
+    }
+}
+
+impl DisplayRaw {
     pub fn get_display_mode(&self) -> Result<DisplayMode, ExitCode> {
         let mut display_mode = DisplayMode::Text;
         FileDesc::from_fd(FileDescriptor::Display)
@@ -50,15 +60,16 @@ impl Display {
     }
 }
 
-static DISPLAY: Mutex<ThreadModeRawMutex, RefCell<Display>> =
-    Mutex::new(RefCell::new(Display { _private: () }));
+static DISPLAY: Display = Display {
+    inner: Mutex::new(RefCell::new(DisplayRaw { _private: () })),
+};
 
 #[must_use]
-pub fn display() -> &'static Mutex<ThreadModeRawMutex, RefCell<Display>> {
+pub fn display() -> &'static Display {
     &DISPLAY
 }
 
-impl Write for Display {
+impl Write for DisplayRaw {
     fn write(&mut self, buf: &[u8]) -> nostd::io::Result<usize> {
         FileDesc::from_fd(FileDescriptor::Display).write(buf);
         Ok(buf.len())

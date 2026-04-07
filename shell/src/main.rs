@@ -7,12 +7,8 @@ use libsys::ExitCode;
 #[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start(abi: *const libsys::KernelAbi) -> ExitCode {
     libsys::core::sys_init(abi);
-    // write better libsys to make it easier
-    unsafe {
-        libsys::display::display().lock_mut(|d| {
-            d.borrow_mut()
-                .set_display_mode(libsys::display::DisplayMode::Text);
-        });
-    }
+    libsys::display::display().lock(|d| {
+        d.set_display_mode(libsys::display::DisplayMode::Text);
+    });
     ExitCode::Ok
 }
