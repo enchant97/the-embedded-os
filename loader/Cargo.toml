@@ -1,0 +1,25 @@
+[package]
+name = "loader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+kernel = { path = "../kernel" }
+kernel_abi = { path = "../kernel_abi" }
+shell = { path = "../shell" }
+
+# START required core packages
+cortex-m = { version = "0.7.6", features = ["inline-asm"] }
+cortex-m-rt = "0.7.0"
+# END required core packages
+
+embassy-executor = { version = "0.10.0", features = ["defmt", "platform-cortex-m", "executor-thread"] }
+embassy-rp = { version = "0.10.0", features = ["defmt", "rp2040", "critical-section-impl", "time-driver"] }
+embassy-time = { version = "0.5.1", features = ["defmt"] }
+embassy-sync = { version = "0.8.0", features = ["defmt"] }
+static_cell = "2.1"
+portable-atomic = { version = "1.13", features = [ "critical-section" ] }
+
+defmt = "1.0.1"
+defmt-rtt = "1.1.0"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
