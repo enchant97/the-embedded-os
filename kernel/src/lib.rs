@@ -3,10 +3,12 @@
 use assign_resources::assign_resources;
 use embassy_rp::{
     Peri, bind_interrupts, gpio,
-    peripherals::{self, DMA_CH0},
+    peripherals::{self, DMA_CH0, SPI0},
     spi::{self, Spi},
 };
-use embassy_sync::once_lock::OnceLock;
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex, once_lock::OnceLock,
+};
 use embassy_time::Delay;
 use kernel_abi::KernelAbi;
 
@@ -15,6 +17,9 @@ use crate::display::ST7920;
 mod display;
 
 pub static KERNEL_ABI: OnceLock<KernelAbi> = OnceLock::new();
+pub static DEVICE_DISPLAY: OnceLock<
+    Mutex<CriticalSectionRawMutex, ST7920<Spi<SPI0, spi::Async>, gpio::Output>>,
+> = OnceLock::new();
 
 assign_resources! {
     display: DisplayResources {
@@ -44,12 +49,15 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
         display_spi_config,
     );
     let display_spi_cs = gpio::Output::new(r.display.cs, gpio::Level::Low);
-
     let mut display = ST7920::new(display_spi, display_spi_cs, false);
     let mut delay = Delay {};
     display.init(&mut delay).await;
-    display.set_pixel(0, 0, 1);
-    display.flush(&mut delay).await;
+    let _ = DEVICE_DISPLAY.init(Mutex::new(display));
+
+    // just for testing
+    let mut d = DEVICE_DISPLAY.get().await.lock().await;
+    d.set_pixel(0, 0, 1);
+    d.flush(&mut delay).await;
 
     defmt::debug!("running kernel busy loop");
     loop {
