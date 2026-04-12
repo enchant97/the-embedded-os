@@ -6,4 +6,13 @@ edition = "2024"
 [dependencies]
 kernel_abi = { path = "../kernel_abi" }
 
-embassy-sync = { version = "0.8.0", features = ["defmt"] }
+embassy-sync = { version = "0.8.0" }
+embassy-rp = { version = "0.10.0", features = ["rp2040"] }
+embassy-time = "0.5"
+embassy-embedded-hal = "0.6"
+embedded-hal-async = "1.0"
+embedded-hal = "1.0"
+assign-resources = "0.5.0"
+static_cell = "2.1.1"
+portable-atomic = { version = "1.13", features = [ "critical-section" ] }
+defmt = "1.0.1"

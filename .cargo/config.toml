@@ -1,0 +1,15 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# allows to flash without a debug probe
+# but requires unit be put into flashing mode
+#runner = "elf2uf2-rs --deploy --verbose"
+# requires debug probe to be attached
+runner = "probe-rs run --chip RP2040"
+
+[build]
+# RP2040
+target = "thumbv6m-none-eabi"
+# RP235x
+# target = "thumbv8m.main-none-eabihf"
+
+[env]
+DEFMT_LOG = "debug"
