@@ -1,4 +1,4 @@
-use core::ffi::c_void;
+use core::{ffi::c_void, slice::from_raw_parts_mut};
 
 use kernel_abi::{ExitCode, FileDescriptor};
 
@@ -20,6 +20,15 @@ impl FileDesc {
 
     pub fn flush(&self) {
         (abi().flush)(self.descriptor);
+    }
+
+    pub fn mmap(&self, len: usize) -> Option<&mut [u8]> {
+        let ptr = (abi().mmap)(self.descriptor);
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe { Some(from_raw_parts_mut(ptr as *mut u8, len)) }
+        }
     }
 
     pub fn ioctl(

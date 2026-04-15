@@ -26,14 +26,20 @@ pub struct KernelAbi {
     pub exit: extern "C" fn(ExitCode) -> !,
     /// Memory allocation request
     pub malloc: extern "C" fn(size: usize) -> *mut u8,
-    /// Memory removal request
+    /// Memory removal request, pointer must have been previously returned from `malloc()`.
     pub free: extern "C" fn(ptr: *mut u8),
-    /// Write a buffer to the given file descriptor.
+    /// Write directly to the given file descriptor.
     pub write: extern "C" fn(fd: FileDescriptor, buff: *const u8, buff_len: usize),
     /// Ensure everything that is buffered is written to given descriptor.
     pub flush: extern "C" fn(fd: FileDescriptor),
     /// Adjust current cursor of given file descriptor.
+    ///
+    /// Only one cursor exists per file descriptor.
     pub seek: extern "C" fn(fd: FileDescriptor, offset: usize),
+    /// Get a shared buffer for given file descriptor.
+    ///
+    /// - Requires `flush(fd)` to ensure changes get written.
+    pub mmap: extern "C" fn(fd: FileDescriptor) -> *mut c_void,
     /// Device Control
     ///
     /// Each type of device will have a different set of available commands and argument values.
