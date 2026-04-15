@@ -3,6 +3,11 @@
 //! Based on: <https://github.com/wjakobczyk/st7920/tree/master>
 //! Based on: <https://github.com/enchant97/micropython-st7920>
 
+use embedded_graphics::{
+    Pixel,
+    pixelcolor::BinaryColor,
+    prelude::{DrawTarget, OriginDimensions, Size},
+};
 use embedded_hal::digital::OutputPin;
 use embedded_hal_async::{delay::DelayNs, spi::SpiBus};
 
@@ -128,5 +133,37 @@ where
             }
         }
         self.cs.set_low().unwrap();
+    }
+}
+
+impl<SPI, CS> OriginDimensions for ST7920<SPI, CS> {
+    fn size(&self) -> Size {
+        Size::new(WIDTH, HEIGHT)
+    }
+}
+
+impl<SPI, CS> DrawTarget for ST7920<SPI, CS>
+where
+    SPI: SpiBus,
+    CS: OutputPin,
+{
+    type Color = BinaryColor;
+    type Error = ();
+
+    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = Pixel<Self::Color>>,
+    {
+        for Pixel(coord, color) in pixels.into_iter() {
+            self.set_pixel_unchecked(
+                coord.x as u8,
+                coord.y as u8,
+                match color {
+                    BinaryColor::On => 1,
+                    BinaryColor::Off => 0,
+                },
+            );
+        }
+        Ok(())
     }
 }
