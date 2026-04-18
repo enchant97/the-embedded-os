@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["kernel","kernel_abi", "libsys", "loader", "shell", "st7920"]
+members = ["kernel","kernel_abi", "libsys", "loader", "shell"]
 
 [profile.release]
 opt-level = "z"
