@@ -58,6 +58,15 @@ impl DisplayRaw {
             )
             .map(|()| display_stat)
     }
+
+    pub fn get_framebuffer_mut<F>(&mut self, op: F)
+    where
+        F: FnOnce(&mut [u8]),
+    {
+        op(FileDesc::from_fd(FileDescriptor::Display)
+            .mmap(128 * 64)
+            .unwrap())
+    }
 }
 
 static DISPLAY: Display = Display {

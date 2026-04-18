@@ -48,6 +48,14 @@ where
     SPI: SpiBus,
     CS: OutputPin,
 {
+    pub const fn width() -> u32 {
+        WIDTH
+    }
+
+    pub const fn height() -> u32 {
+        HEIGHT
+    }
+
     pub fn new(spi: SPI, cs: CS, flip: bool) -> Self {
         let buffer = [0; BUFFER_SIZE];
         Self {
@@ -98,8 +106,8 @@ where
             val = 0;
         }
         if self.flip {
-            y = (HEIGHT - 1) as u8 - y;
-            x = (WIDTH - 1) as u8 - x;
+            y = (Self::height() - 1) as u8 - y;
+            x = (Self::width() - 1) as u8 - x;
         }
         let idx = y as usize * ROW_SIZE + x as usize / 8;
         let x_mask = 0x80 >> (x % 8);
@@ -112,7 +120,7 @@ where
 
     #[inline]
     pub fn set_pixel(&mut self, x: u8, y: u8, val: u8) {
-        if x < WIDTH as u8 && y < HEIGHT as u8 {
+        if x < Self::width() as u8 && y < Self::height() as u8 {
             self.set_pixel_unchecked(x, y, val);
         }
     }
@@ -120,7 +128,7 @@ where
     #[inline]
     pub async fn flush(&mut self, delay: &mut impl DelayNs) {
         self.cs.set_high().unwrap();
-        for y in 0..HEIGHT as u8 {
+        for y in 0..Self::height() as u8 {
             let row_offset = (y as u32) * 16;
             if y < 32 {
                 self.set_graphics_address(0, y, delay).await;
@@ -136,9 +144,13 @@ where
     }
 }
 
-impl<SPI, CS> OriginDimensions for ST7920<SPI, CS> {
+impl<SPI, CS> OriginDimensions for ST7920<SPI, CS>
+where
+    SPI: SpiBus,
+    CS: OutputPin,
+{
     fn size(&self) -> Size {
-        Size::new(WIDTH, HEIGHT)
+        Size::new(Self::width(), Self::height())
     }
 }
 
@@ -155,7 +167,7 @@ where
         I: IntoIterator<Item = Pixel<Self::Color>>,
     {
         for Pixel(coord, color) in pixels.into_iter() {
-            self.set_pixel_unchecked(
+            self.set_pixel(
                 coord.x as u8,
                 coord.y as u8,
                 match color {

@@ -4,7 +4,9 @@
 use core::ptr::addr_of_mut;
 use embassy_executor::Executor;
 use embassy_rp::multicore::Stack;
-use kernel::{AssignedResources, DisplayResources, KERNEL_ABI, kernel_entry, split_resources};
+use kernel::{
+    AssignedResources, DisplayResources, KERNEL_ABI, KERNEL_READY, kernel_entry, split_resources,
+};
 use kernel_abi::KernelAbi;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -40,9 +42,11 @@ async fn core0_task(r: AssignedResources) {
 async fn core1_task() {
     // NOTE maybe make this a lib so we don't have to include_bytes
     let shell = include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
-    let shell_entry: extern "C" fn(&KernelAbi) -> u8 =
-        unsafe { core::mem::transmute(shell.as_ptr()) };
-    let abi = KERNEL_ABI.get().await;
+    let shell_ptr = shell.as_ptr() as usize | 1;
+    let shell_entry: extern "C" fn(*const KernelAbi) -> u8 =
+        unsafe { core::mem::transmute(shell_ptr) };
+    KERNEL_READY.wait().await;
     defmt::debug!("shell entry");
-    shell_entry(abi);
+    let exit_code = shell_entry(&KERNEL_ABI as *const KernelAbi);
+    defmt::info!("got exit code '{}'", exit_code);
 }
