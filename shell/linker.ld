@@ -1,29 +1,40 @@
 ENTRY(_start)
 
+MEMORY {
+    FLASH : ORIGIN = 0x10040000, LENGTH = 1792K
+    RAM : ORIGIN = 0x20020000, LENGTH = 128K
+}
+
 SECTIONS
 {
-    . = 0x0;
+    . = 0x10040000;
 
     .text : {
         KEEP(*(.text._start))
         *(.text*)
-    }
+    } > FLASH
 
-    .rodata : { *(.rodata*) }
-    .data : { *(.data*) }
+    .rodata : { *(.rodata*) } > FLASH
+
+    .data : {
+        _data_start = .;
+        *(.data*)
+        _data_end = .;
+    } > RAM AT > FLASH
+
+    _data_load = LOADADDR(.data);
+
     .bss : {
+        _bss_start = .;
         *(.bss*)
         *(COMMON)
-    }
-    .ARM.exidx : {
-        *(.ARM.exidx*)
-    }
+        _bss_end = .;
+    } > RAM
 
-    .ARM.extab : {
-        *(.ARM.extab*)
-    }
     /DISCARD/ : {
         *(.comment*)
         *(.note*)
+        *(.ARM.exidx*)
+        *(.ARM.extab*)
     }
 }

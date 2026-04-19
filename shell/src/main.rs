@@ -3,9 +3,45 @@
 
 use libsys::{ExitCode, nostd::io::Write};
 
+// Symbols injected by the linker script
+unsafe extern "C" {
+    static mut _data_start: u32;
+    static mut _data_end: u32;
+    static _data_load: u32; // LMA — read only, lives in flash
+    static mut _bss_start: u32;
+    static mut _bss_end: u32;
+}
+
+unsafe fn init_memory() {
+    // copy .data from flash to RAM
+    let mut src = &raw const _data_load as *const u32;
+    let mut dst = &raw mut _data_start as *mut u32;
+    let end = &raw const _data_end as *const u32;
+    while dst < end as *mut u32 {
+        unsafe {
+            dst.write_volatile(src.read());
+            src = src.add(1);
+            dst = dst.add(1);
+        }
+    }
+
+    // zero .bss
+    let mut bss = &raw mut _bss_start as *mut u32;
+    let bss_end = &raw const _bss_end as *const u32;
+    while bss < bss_end as *mut u32 {
+        unsafe {
+            bss.write_volatile(0);
+            bss = bss.add(1);
+        }
+    }
+}
+
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start(abi: *const libsys::KernelAbi) -> ExitCode {
+    unsafe {
+        init_memory();
+    }
     libsys::core::sys_init(abi);
     let _ = libsys::core::get_abi_version();
     //libsys::display::display().lock(|d| {

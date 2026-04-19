@@ -15,6 +15,9 @@ static mut CORE1_STACK: Stack<4096> = Stack::new();
 static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 
+#[unsafe(link_section = ".app_flash_slot")]
+static APP_FLASH: &[u8] = include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
     defmt::debug!("loader entry");
@@ -40,9 +43,7 @@ async fn core0_task(r: AssignedResources) {
 
 #[embassy_executor::task]
 async fn core1_task() {
-    // NOTE maybe make this a lib so we don't have to include_bytes
-    let shell = include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
-    let shell_ptr = shell.as_ptr() as usize | 1;
+    let shell_ptr = APP_FLASH.as_ptr() as usize | 1;
     let shell_entry: extern "C" fn(*const KernelAbi) -> u8 =
         unsafe { core::mem::transmute(shell_ptr) };
     KERNEL_READY.wait().await;
