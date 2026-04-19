@@ -12,6 +12,6 @@ MEMORY {
 
 SECTIONS {
     .app_flash_slot : {
-        KEEP(*(.app_slot))
+        KEEP(*(.app_flash_slot))
     } > APP_FLASH
 }

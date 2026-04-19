@@ -16,7 +16,8 @@ static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 
 #[unsafe(link_section = ".app_flash_slot")]
-static APP_FLASH: &[u8] = include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
+static APP_FLASH: [u8; include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin").len()] =
+    *include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
 
 #[cortex_m_rt::entry]
 fn main() -> ! {

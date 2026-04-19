@@ -43,14 +43,14 @@ pub extern "C" fn _start(abi: *const libsys::KernelAbi) -> ExitCode {
         init_memory();
     }
     libsys::core::sys_init(abi);
-    let _ = libsys::core::get_abi_version();
-    //libsys::display::display().lock(|d| {
-    //    d.set_display_mode(libsys::display::DisplayMode::Text)
-    //        .expect("failed to set mode");
-    //    d.get_framebuffer_mut(|mut fb| {
-    //        fb.write_all(b"Hello World!").unwrap();
-    //    });
-    //    d.flush().expect("fail to flush display buffer");
-    //});
+    libsys::display::display().lock(|d| {
+        d.set_display_mode(libsys::display::DisplayMode::Text)
+            .expect("failed to set mode");
+        d.get_framebuffer_mut(|mut fb| {
+            let msg = b"Hello World!";
+            fb.write_all(msg).unwrap();
+        });
+        d.flush().expect("fail to flush display buffer");
+    });
     ExitCode::Ok
 }

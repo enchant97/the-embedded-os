@@ -36,5 +36,6 @@ SECTIONS
         *(.note*)
         *(.ARM.exidx*)
         *(.ARM.extab*)
+        *(.ARM.attributes*)
     }
 }

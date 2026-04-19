@@ -118,23 +118,29 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     let mut display = ST7920::new(display_spi, display_spi_cs, false);
     let mut delay = Delay {};
     display.init(&mut delay).await;
+    display.flush(&mut delay).await;
 
     defmt::debug!("kernel ready");
     KERNEL_READY.signal(());
 
-    let text_style = MonoTextStyle::new(&FONT_4X6, BinaryColor::On);
+    let font = FONT_4X6;
+    let text_style = MonoTextStyle::new(&font, BinaryColor::On);
+
     loop {
         defmt::debug!("waiting for next display flush");
         FLUSH_DISPLAY_SIG.wait().await;
         // assumes always in text-mode
-        let mut point = Point::new(0, 0);
-        for line_i in 0..64 / text_style.line_height() as usize {
+        let mut point = Point::new(0, font.character_size.height as i32);
+        let n_lines = 64 / font.character_size.height as usize;
+        let line_length = 128 / font.character_size.width as usize;
+        for line_i in 0..n_lines {
             let line;
             unsafe {
-                line = &DISPLAY_FB[line_i..line_i + 64];
+                line = &DISPLAY_FB[line_i * line_length..(line_i + 1) * line_length];
             }
+            defmt::debug!("{:?}", line);
             Text::with_alignment(
-                str::from_utf8(line).unwrap(),
+                str::from_utf8(line).unwrap().trim_end_matches("\0"),
                 point,
                 text_style,
                 Alignment::Left,
