@@ -15,9 +15,16 @@ static mut CORE1_STACK: Stack<4096> = Stack::new();
 static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
 
-#[unsafe(link_section = ".app_flash_slot")]
-static APP_FLASH: [u8; include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin").len()] =
+#[unsafe(link_section = ".shell_flash_slot")]
+static SHELL_FLASH: [u8; include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin").len()] =
     *include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
+
+type AppEntry = extern "C" fn(*const KernelAbi) -> u8;
+
+fn get_shell_entry() -> AppEntry {
+    let app_ptr = SHELL_FLASH.as_ptr() as usize | 1;
+    unsafe { core::mem::transmute(app_ptr) }
+}
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
@@ -44,9 +51,7 @@ async fn core0_task(r: AssignedResources) {
 
 #[embassy_executor::task]
 async fn core1_task() {
-    let shell_ptr = APP_FLASH.as_ptr() as usize | 1;
-    let shell_entry: extern "C" fn(*const KernelAbi) -> u8 =
-        unsafe { core::mem::transmute(shell_ptr) };
+    let shell_entry = get_shell_entry();
     KERNEL_READY.wait().await;
     defmt::debug!("shell entry");
     let exit_code = shell_entry(&KERNEL_ABI as *const KernelAbi);

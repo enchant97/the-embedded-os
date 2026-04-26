@@ -4,14 +4,14 @@ MEMORY {
     FLASH : ORIGIN = 0x10000100, LENGTH = 256K - 0x100
     RAM   : ORIGIN = 0x20000000, LENGTH = 128K
     /* define app section memory areas */
-    APP_FLASH : ORIGIN = 0x10040000, LENGTH = 1792K
+    SHELL_FLASH : ORIGIN = 0x10040000, LENGTH = 1792K
     APP_RAM : ORIGIN = 0x20020000, LENGTH = 128K
     /* shared, for future use with syscalls */
     IPC_RAM : ORIGIN = 0x20040000, LENGTH = 4K
 }
 
 SECTIONS {
-    .app_flash_slot : {
-        KEEP(*(.app_flash_slot))
-    } > APP_FLASH
+    .shell_flash_slot : {
+        KEEP(*(.shell_flash_slot))
+    } > SHELL_FLASH
 }
