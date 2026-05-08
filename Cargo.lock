@@ -980,6 +980,7 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "assign-resources",
+ "cortex-m",
  "defmt 1.0.1",
  "embassy-embedded-hal",
  "embassy-rp",

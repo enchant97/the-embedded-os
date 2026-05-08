@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 kernel_abi = { path = "../kernel_abi" }
 
+cortex-m = { version = "0.7.6", features = ["inline-asm"] }
 embassy-sync = { version = "0.8.0" }
 embassy-rp = { version = "0.10.0", features = ["rp2040"] }
 embassy-time = "0.5"

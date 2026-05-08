@@ -36,6 +36,7 @@ pub static KERNEL_ABI: KernelAbi = KernelAbi {
     ioctl: abi_ioctl,
 };
 pub static KERNEL_READY: Signal<CriticalSectionRawMutex, ()> = Signal::new();
+pub static APP_EXIT: Signal<CriticalSectionRawMutex, ExitCode> = Signal::new();
 
 static FLUSH_DISPLAY_SIG: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 // NOTE "static mut" is generally not a good idea. But may be required for this kernel?
@@ -120,8 +121,9 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     display.init(&mut delay).await;
     display.flush(&mut delay).await;
 
-    defmt::debug!("kernel ready");
     KERNEL_READY.signal(());
+    defmt::debug!("waking core1");
+    cortex_m::asm::sev();
 
     let font = FONT_4X6;
     let text_style = MonoTextStyle::new(&font, BinaryColor::On);
