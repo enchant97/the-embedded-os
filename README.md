@@ -11,7 +11,6 @@ An experimental "from scratch" operating system project aimed at the RP2040/RP23
 - `kernel` - The Kernel
 - `kernel_abi` - The public ABI exposed by the kernel
 - `libsys` - A friendly Rust interface for using the ABI
-- `loader` - Load the kernel and launching the shell
 - `shell` - User control via CLI
 - `apps/` - external apps
 

@@ -11,6 +11,9 @@ MEMORY {
 }
 
 SECTIONS {
+    __shell_flash_start = ORIGIN(SHELL_FLASH);
+    __shell_flash_end   = ORIGIN(SHELL_FLASH) + LENGTH(SHELL_FLASH);
+
     .shell_flash_slot : {
         KEEP(*(.shell_flash_slot))
     } > SHELL_FLASH
