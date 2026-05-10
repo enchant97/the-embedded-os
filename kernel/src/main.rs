@@ -25,9 +25,9 @@ use kernel_abi::{ExitCode, FileDescriptor, KernelAbi};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
-use crate::display::ST7920;
+use crate::drivers::display::ST7920;
 
-mod display;
+mod drivers;
 
 unsafe extern "C" {
     static __shell_flash_start: u32;

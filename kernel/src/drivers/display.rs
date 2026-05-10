@@ -31,8 +31,8 @@ const INIT_INSTRUCTIONS: [Instruction; 7] = [
     Instruction::ExtendedFunction,
     Instruction::GraphicsOn,
 ];
-const WIDTH: u32 = 128;
-const HEIGHT: u32 = 64;
+pub const WIDTH: u32 = 128;
+pub const HEIGHT: u32 = 64;
 const ROW_SIZE: usize = (WIDTH / 8) as usize;
 const BUFFER_SIZE: usize = ROW_SIZE * HEIGHT as usize;
 
