@@ -25,6 +25,7 @@ use kernel_abi::{ExitCode, FileDescriptor, KernelAbi};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
+use crate::common::AppEntry;
 use crate::drivers::display::ST7920;
 use crate::memory::get_shell_app_entry;
 
@@ -46,8 +47,11 @@ pub static KERNEL_ABI: KernelAbi = KernelAbi {
     mmap: abi_mmap,
     ioctl: abi_ioctl,
 };
-pub static KERNEL_READY: Signal<CriticalSectionRawMutex, ()> = Signal::new();
-pub static APP_EXIT: Signal<CriticalSectionRawMutex, ExitCode> = Signal::new();
+
+/// Used to signal that the current app has finished.
+pub static APP_EXIT_SIG: Signal<CriticalSectionRawMutex, ExitCode> = Signal::new();
+/// Used to signal which app to launch.
+pub static APP_LAUNCH_SIG: Signal<CriticalSectionRawMutex, AppEntry> = Signal::new();
 
 static FLUSH_DISPLAY_SIG: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 // NOTE "static mut" is generally not a good idea. But may be required for this kernel?
@@ -132,8 +136,8 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     display.init(&mut delay).await;
     display.flush(&mut delay).await;
 
-    KERNEL_READY.signal(());
-    defmt::debug!("waking core1");
+    defmt::debug!("signal core1 to launch shell process");
+    APP_LAUNCH_SIG.signal(get_shell_app_entry());
     cortex_m::asm::sev();
 
     let font = FONT_4X6;
@@ -167,21 +171,22 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     }
 }
 
-fn core1_task() -> ! {
-    defmt::debug!("core1 entry, waiting for kernel ready signal");
-    while !KERNEL_READY.signaled() {
-        cortex_m::asm::wfe();
-    }
-
-    // TODO this will go in a loop later
-    APP_EXIT.reset();
-    defmt::info!("spawn shell entry");
-    let shell_entry = get_shell_app_entry();
-    let exit_code = shell_entry(&KERNEL_ABI as *const KernelAbi);
-    APP_EXIT.signal(exit_code);
-    defmt::info!("got exit code '{}'", exit_code as u8);
-    defmt::info!("core1 park");
+/// main task loop for handling user processes.
+///
+/// Should be called once on core1, will block indefinitely.
+fn user_process_supervisor(abi: *const KernelAbi) -> ! {
     loop {
+        if let Some(app_entry) = APP_LAUNCH_SIG.try_take() {
+            defmt::debug!("core1 received new app entry, launching...");
+            APP_EXIT_SIG.reset();
+            let exit_code = app_entry(abi);
+            defmt::info!(
+                "core1 process finished, got exit code '{}'",
+                exit_code as u8
+            );
+            APP_EXIT_SIG.signal(exit_code);
+        }
+        defmt::debug!("parking core1");
         cortex_m::asm::wfe();
     }
 }
@@ -195,7 +200,7 @@ fn main() -> ! {
         p.CORE1,
         // TODO replace addr_of_mut with newer implementation
         unsafe { &mut *addr_of_mut!(APP_STACK) },
-        move || core1_task(),
+        move || user_process_supervisor(&KERNEL_ABI as *const KernelAbi),
     );
     let executor0 = EXECUTOR0.init(Executor::new());
     executor0.run(|spawner| spawner.spawn(core0_task(r).unwrap()))
