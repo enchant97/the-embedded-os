@@ -26,23 +26,14 @@ use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
 use crate::drivers::display::ST7920;
+use crate::memory::get_shell_app_entry;
 
+mod common;
 mod drivers;
-
-unsafe extern "C" {
-    static __shell_flash_start: u32;
-    static __shell_flash_end: u32;
-}
-
-#[allow(unused)]
-#[unsafe(link_section = ".shell_flash_slot")]
-static SHELL_FLASH: [u8; include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin").len()] =
-    *include_bytes!("../../target/thumbv6m-none-eabi/bin/shell.bin");
+mod memory;
 
 static mut APP_STACK: Stack<4096> = Stack::new();
 static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
-
-type AppEntry = extern "C" fn(*const KernelAbi) -> ExitCode;
 
 pub static KERNEL_ABI: KernelAbi = KernelAbi {
     get_version: abi_get_version,
@@ -176,14 +167,6 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     }
 }
 
-fn get_shell_entry() -> AppEntry {
-    unsafe {
-        // `| 1` enables Thumb mode
-        let addr = &raw const __shell_flash_start as usize | 1;
-        core::mem::transmute(addr)
-    }
-}
-
 fn core1_task() -> ! {
     defmt::debug!("core1 entry, waiting for kernel ready signal");
     while !KERNEL_READY.signaled() {
@@ -193,7 +176,7 @@ fn core1_task() -> ! {
     // TODO this will go in a loop later
     APP_EXIT.reset();
     defmt::info!("spawn shell entry");
-    let shell_entry = get_shell_entry();
+    let shell_entry = get_shell_app_entry();
     let exit_code = shell_entry(&KERNEL_ABI as *const KernelAbi);
     APP_EXIT.signal(exit_code);
     defmt::info!("got exit code '{}'", exit_code as u8);
