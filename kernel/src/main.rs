@@ -6,6 +6,8 @@ use assign_resources::assign_resources;
 use core::ptr::addr_of_mut;
 use core::{ffi::c_void, str};
 use embassy_executor::Executor;
+use embassy_futures::join::join;
+use embassy_rp::peripherals::USB;
 use embassy_rp::{
     Peri, bind_interrupts, gpio,
     multicore::Stack,
@@ -14,6 +16,7 @@ use embassy_rp::{
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::Delay;
+use embassy_usb_host::class::hid::PROTOCOL_BOOT;
 use embedded_graphics::{
     Drawable,
     mono_font::{MonoTextStyle, ascii::FONT_4X6},
@@ -65,11 +68,15 @@ assign_resources! {
         sck: PIN_18,
         mosi: PIN_19,
         dma: DMA_CH0,
-    }
+    },
+    usb: UsbResources {
+        usb: USB,
+    },
 }
 
 bind_interrupts!(struct Irqs{
     DMA_IRQ_0 => embassy_rp::dma::InterruptHandler<DMA_CH0>;
+    USBCTRL_IRQ => embassy_rp::usb::host::InterruptHandler<USB>;
 });
 
 extern "C" fn abi_get_version() -> u32 {
@@ -117,20 +124,13 @@ extern "C" fn abi_ioctl(
     ExitCode::Ok
 }
 
-pub async fn kernel_entry(r: AssignedResources) -> ! {
+pub async fn kernel_entry(r: DisplayResources) -> ! {
     let mut display_spi_config = spi::Config::default();
     display_spi_config.polarity = spi::Polarity::IdleLow;
     display_spi_config.phase = spi::Phase::CaptureOnFirstTransition;
     display_spi_config.frequency = 600000;
-    let display_spi = Spi::new_txonly(
-        r.display.spi,
-        r.display.sck,
-        r.display.mosi,
-        r.display.dma,
-        Irqs,
-        display_spi_config,
-    );
-    let display_spi_cs = gpio::Output::new(r.display.cs, gpio::Level::Low);
+    let display_spi = Spi::new_txonly(r.spi, r.sck, r.mosi, r.dma, Irqs, display_spi_config);
+    let display_spi_cs = gpio::Output::new(r.cs, gpio::Level::Low);
     let mut display = ST7920::new(display_spi, display_spi_cs, false);
     let mut delay = Delay {};
     display.init(&mut delay).await;
@@ -171,10 +171,80 @@ pub async fn kernel_entry(r: AssignedResources) -> ! {
     }
 }
 
+async fn usb_entry(r: UsbResources) {
+    let driver = embassy_rp::usb::host::Driver::new(r.usb, Irqs);
+    static BUS_STATE: embassy_usb_host::BusState = embassy_usb_host::BusState::new();
+    let (mut bus_ctrl, bus) = embassy_usb_host::bus(driver, &BUS_STATE);
+
+    defmt::debug!("USB host initialized, waiting for device...");
+
+    loop {
+        let speed = bus_ctrl.wait_for_connection().await;
+        defmt::debug!("Device connected at speed {:?}", speed);
+
+        let mut config_buf = [0u8; 256];
+        let result = bus
+            .enumerate(embassy_usb_host::BusRoute::Direct(speed), &mut config_buf)
+            .await;
+
+        let (enum_info, config_len) = match result {
+            Ok(r) => r,
+            Err(e) => {
+                defmt::error!("Enumeration failed: {:?}", e);
+                continue;
+            }
+        };
+
+        defmt::debug!(
+            "Enumerated: VID={:04x} PID={:04x} addr={}",
+            enum_info.device_desc.vendor_id,
+            enum_info.device_desc.product_id,
+            enum_info.device_address
+        );
+
+        let mut hid = match embassy_usb_host::class::hid::HidHost::new(
+            &bus,
+            &config_buf[..config_len],
+            &enum_info,
+        ) {
+            Ok(h) => h,
+            Err(e) => {
+                defmt::error!("HID init failed: {:?}", e);
+                continue;
+            }
+        };
+
+        if let Err(e) = hid.set_idle(0, 0).await {
+            defmt::error!("SET_IDLE failed: {:?}", e);
+            continue;
+        }
+
+        defmt::debug!("HID device ready, switch to keyboard mode...");
+
+        hid.set_protocol(PROTOCOL_BOOT).await.unwrap();
+
+        loop {
+            match hid.read_keyboard().await {
+                Ok(Some(r)) => {
+                    defmt::debug!("Keyboard report: {:x}", r);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    defmt::error!("Keyboard read failed: {:?}", e);
+                    break;
+                }
+            }
+        }
+
+        defmt::debug!("Device disconnected, waiting for next...");
+    }
+}
+
 /// main task loop for handling user processes.
 ///
 /// Should be called once on core1, will block indefinitely.
 fn user_process_supervisor(abi: *const KernelAbi) -> ! {
+    #[allow(clippy::never_loop)]
     loop {
         if let Some(app_entry) = APP_LAUNCH_SIG.try_take() {
             defmt::debug!("core1 received new app entry, launching...");
@@ -185,8 +255,8 @@ fn user_process_supervisor(abi: *const KernelAbi) -> ! {
                 exit_code as u8
             );
             APP_EXIT_SIG.signal(exit_code);
+            defmt::debug!("parking core1, until new app is launched");
         }
-        defmt::debug!("parking core1");
         cortex_m::asm::wfe();
     }
 }
@@ -209,5 +279,5 @@ fn main() -> ! {
 #[embassy_executor::task]
 async fn core0_task(r: AssignedResources) {
     defmt::debug!("kernel entry");
-    kernel_entry(r).await;
+    join(kernel_entry(r.display), usb_entry(r.usb)).await;
 }

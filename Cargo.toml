@@ -8,3 +8,14 @@ strip = true # this will cause defmt to not work
 lto = true
 panic = "abort"
 codegen-units = 1
+
+[patch.crates-io]
+# needed to get usb-host support. Remove when embassy-rp 0.11 releases?
+# also using own fork, since I have patched some fixes for usb-host
+embassy-executor = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-rp = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-time  = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-sync  = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-futures = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-usb-host  = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
+embassy-embedded-hal  = { git = "https://github.com/enchant97/embassy.git", rev="18944b6" }
