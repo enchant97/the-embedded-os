@@ -226,7 +226,8 @@ async fn usb_entry(r: UsbResources) {
         loop {
             match hid.read_keyboard().await {
                 Ok(Some(r)) => {
-                    defmt::debug!("Keyboard report: {:x}", r);
+                    let mapping: key_mapping::KeyboardReport = r.into();
+                    defmt::debug!("Keyboard report: {:?}", mapping);
                 }
                 Ok(None) => {}
                 Err(e) => {
