@@ -16,7 +16,6 @@ use embassy_rp::{
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::Delay;
-use embassy_usb_host::class::hid::PROTOCOL_BOOT;
 use embedded_graphics::{
     Drawable,
     mono_font::{MonoTextStyle, ascii::FONT_4X6},
@@ -219,25 +218,9 @@ async fn usb_entry(r: UsbResources) {
             continue;
         }
 
-        defmt::debug!("HID device ready, switch to keyboard mode...");
-
-        hid.set_protocol(PROTOCOL_BOOT).await.unwrap();
-
-        loop {
-            match hid.read_keyboard().await {
-                Ok(Some(r)) => {
-                    let mapping: key_mapping::KeyboardReport = r.into();
-                    defmt::debug!("Keyboard report: {:?}", mapping);
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    defmt::error!("Keyboard read failed: {:?}", e);
-                    break;
-                }
-            }
-        }
-
-        defmt::debug!("Device disconnected, waiting for next...");
+        defmt::debug!("HID device ready, load keyboard driver");
+        let mut kbd = drivers::Keyboard::setup(&mut hid).await;
+        kbd.entry().await;
     }
 }
 
