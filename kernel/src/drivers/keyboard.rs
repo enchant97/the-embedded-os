@@ -1,79 +1,26 @@
 use embassy_rp::usb::host::{Allocator, SealedHostInstance};
 use embassy_usb_host::{
     BusHandle,
-    class::hid::{HidHost, PROTOCOL_BOOT},
+    class::hid::{HidHost, KeyboardReport, PROTOCOL_BOOT},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, defmt::Format)]
-pub enum Action {
-    Press,
-    Release,
-}
+mod core;
+mod layout;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, defmt::Format)]
-pub enum Key {
-    /// printable character
-    Char(char),
-    /// raw usage id
-    Raw(u8),
-}
+pub use crate::drivers::keyboard::core::{Action, Key, KeyEvent, Modifiers};
+use crate::drivers::keyboard::layout::usage_id_to_mapped_key;
 
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, defmt::Format)]
-#[repr(transparent)]
-pub struct Modifiers(pub u8);
-
-impl Modifiers {
-    pub const SHIFT: u8 = 1 << 0;
-    pub const CTRL: u8 = 1 << 1;
-    pub const ALT: u8 = 1 << 2;
-    pub const META: u8 = 1 << 3;
-
-    pub fn shift(self) -> bool {
-        self.0 & Self::SHIFT != 0
-    }
-    pub fn ctrl(self) -> bool {
-        self.0 & Self::CTRL != 0
-    }
-    pub fn alt(self) -> bool {
-        self.0 & Self::ALT != 0
-    }
-    pub fn meta(self) -> bool {
-        self.0 & Self::META != 0
-    }
-}
-
-#[derive(Debug, Copy, Clone, defmt::Format)]
-pub struct KeyEvent {
-    pub key: Key,
-    pub action: Action,
-    pub modifiers: Modifiers,
-}
-
-fn report_to_keys(report: key_mapping::KeyboardReport, keys: &mut [Option<Key>; 6]) {
-    for (i, key) in report.keys.into_iter().enumerate() {
-        if key == key_mapping::Keys::None {
-            keys[i] = None;
-        } else if key == key_mapping::Keys::Spacebar {
-            keys[i] = Some(Key::Char(' '));
+fn report_to_keys(report: &KeyboardReport, keys: &mut [Option<Key>; 6]) {
+    for (i, key) in report.keycodes.into_iter().enumerate() {
+        if key <= 1 {
+            keys[i] = None
         } else {
-            // TODO make own mapping table
-            let mapping = key_mapping::MAPPED_KEYS.get(&(key as u8)).unwrap();
-            if mapping.key_type == key_mapping::MappedKeyType::Printable {
-                // handle printable keys
-                let mut c = mapping
-                    .visual
-                    .chars()
-                    .next()
-                    .expect("mapping visual is empty");
-                if report.shift {
-                    // XXX this does not handle all keys
-                    c = c.to_ascii_uppercase();
-                }
-                keys[i] = Some(Key::Char(c));
-            } else {
-                // handle non-printable keys
-                keys[i] = Some(Key::Raw(key as u8));
-            }
+            keys[i] = Some(usage_id_to_mapped_key(
+                // TODO get layout from user preferences
+                layout::Layout::Uk,
+                key,
+                Modifiers(report.modifiers),
+            ));
         }
     }
 }
@@ -103,11 +50,10 @@ impl<'d, T: SealedHostInstance> Keyboard<'d, T> {
         let mut previous_keys: [Option<Key>; 6] = [None; 6];
         loop {
             match self.hid_host.read_keyboard().await {
-                Ok(Some(r)) => {
+                Ok(Some(report)) => {
                     // process new report
-                    let report: key_mapping::KeyboardReport = r.into();
-                    report_to_keys(report, &mut current_keys);
-                    let modifiers = Modifiers(report.get_modifer_code());
+                    report_to_keys(&report, &mut current_keys);
+                    let modifiers = Modifiers(report.modifiers);
 
                     // send events for released keys
                     for prev_key in previous_keys {

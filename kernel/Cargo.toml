@@ -24,4 +24,3 @@ defmt = "1.0.1"
 defmt-rtt = "1.1.0"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 embedded-graphics = { version = "0.8", features = [ "defmt" ] }
-key-mapping = { version = "0.7.1", default-features = false, features = [ "defmt", "embassy-usb-host" ] }
